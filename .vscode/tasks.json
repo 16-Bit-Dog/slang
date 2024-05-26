@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "pre-run-debug",
+            "command": "./linux-build-debug.sh",
+            "type": "shell",
+        },
+        {
+            "label": "pre-run-release",
+            "command": "./linux-build-release.sh",
+            "type": "shell",
+        },
+    ]
+}

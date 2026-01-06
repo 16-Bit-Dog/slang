@@ -736,7 +736,34 @@ struct AssignValsFromLayoutContext
 
         SLANG_RETURN_ON_FAIL(assign(ShaderCursor(shaderObject), srcVal->contentVal));
         shaderObject->finalize();
-        dstCursor.setObject(shaderObject);
+
+        // 1. we want to store a BDA of the object
+        if (dstCursor.getTypeLayout()->getType()->getKind() == slang::TypeReflection::Kind::Pointer)
+        {
+            InputBufferDesc srcBuffer{};
+            srcBuffer.type = InputBufferType::StorageBuffer;
+            
+            ComPtr<IBuffer> bufferResource;
+            auto size = shaderObject->getSize();
+            auto data = shaderObject->getRawData();
+            SLANG_RETURN_ON_FAIL(ShaderRendererUtil::createBuffer(
+                srcBuffer,
+                size,
+                data,
+                device,
+                bufferResource));
+
+            // Keep buffer alive in resource context
+            resourceContext.resources.add(ComPtr<IResource>(bufferResource.get()));
+
+            uint64_t addr = bufferResource->getDeviceAddress();
+            dstCursor.setData(&addr, sizeof(addr));
+        }
+        // 2. we want to store the raw data at the object
+        else
+        {
+            dstCursor.setObject(shaderObject);
+        }
         return SLANG_OK;
     }
 

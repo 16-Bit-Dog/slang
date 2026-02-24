@@ -7190,8 +7190,7 @@ struct StmtLoweringVisitor : StmtVisitor<StmtLoweringVisitor>
         //
         if (auto expr = stmt->expression)
         {
-            if (context->returnDestination.flavor !=
-                LoweredValInfo::Flavor::None)
+            if (context->returnDestination.flavor != LoweredValInfo::Flavor::None)
             {
                 // If this function should return via a __ref parameter, do that and return void.
                 lowerRValueExprWithDestination(context, context->returnDestination, expr);
@@ -7227,13 +7226,14 @@ struct StmtLoweringVisitor : StmtVisitor<StmtLoweringVisitor>
                     // Try to get an address to return if we are trying to return a ref.
                     // This should be enough, but due to `MakeRefExpr` (`ExplicitRef` hack),
                     // we need to fall back to getting a simple val in some cases.
-                    auto address = tryGetAddress(context, loweredExpr, TryGetAddressMode::Aggressive);
-                    if(address.flavor == LoweredValInfo::Flavor::Ptr)
+                    auto address =
+                        tryGetAddress(context, loweredExpr, TryGetAddressMode::Aggressive);
+                    if (address.flavor == LoweredValInfo::Flavor::Ptr)
                         resultInst = address.val;
                 }
 
-                // If we did not already have an address, return a simple val. 
-                if(!resultInst)
+                // If we did not already have an address, return a simple val.
+                if (!resultInst)
                     resultInst = getSimpleVal(context, loweredExpr);
                 getBuilder()->emitReturn(resultInst);
             }

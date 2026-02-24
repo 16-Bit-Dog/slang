@@ -429,16 +429,12 @@ struct AssignValsFromLayoutContext
         resourceContext.resources.add(ComPtr<IResource>(bufferResource.get()));
 
         // User intended to pass this buffer via a T.Handle
-        if(srcBuffer.isHandle)
+        if (srcBuffer.isHandle)
         {
             DescriptorHandle handle;
             auto access = getDescriptorHandleAccess(
-                    dstCursor.getTypeLayout()->getType()->getResourceAccess());
-            bufferResource->getDescriptorHandle(
-                access,
-                srcBuffer.format,
-                kEntireBuffer,
-                &handle);
+                dstCursor.getTypeLayout()->getType()->getResourceAccess());
+            bufferResource->getDescriptorHandle(access, srcBuffer.format, kEntireBuffer, &handle);
             dstCursor.setDescriptorHandle(handle);
             maybeAddOutput(dstCursor, srcVal, bufferResource);
             return SLANG_OK;

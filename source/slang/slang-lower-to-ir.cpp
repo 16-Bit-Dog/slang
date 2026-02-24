@@ -605,6 +605,7 @@ struct IRGenContext
     // The return destination parameter to write to at return sites.
     // (For use by functions that returns non-copyable types)
     LoweredValInfo returnDestination;
+    bool returnStmtShouldCoerceToRef = false;
 
     // A reference to the Function decl to identify the parent function
     // that contains the Inst.
@@ -3947,9 +3948,9 @@ void _lowerFuncDeclBaseTypeInfo(
 
         if (auto refAccessorDeclRef = declRef.as<RefAccessorDecl>())
         {
-            // A `ref` accessor needs to return a *pointer* to the value
+            // A `ref` accessor needs to return a ref to the value
             // being accessed, rather than a simple value.
-            irResultType = builder->getPtrType(irResultType);
+            irResultType = builder->getRefParamType(irResultType, AddressSpace::Generic);
         }
     }
 
@@ -7189,7 +7190,8 @@ struct StmtLoweringVisitor : StmtVisitor<StmtLoweringVisitor>
         //
         if (auto expr = stmt->expression)
         {
-            if (context->returnDestination.flavor != LoweredValInfo::Flavor::None)
+            if (context->returnDestination.flavor !=
+                LoweredValInfo::Flavor::None)
             {
                 // If this function should return via a __ref parameter, do that and return void.
                 lowerRValueExprWithDestination(context, context->returnDestination, expr);
@@ -7219,7 +7221,21 @@ struct StmtLoweringVisitor : StmtVisitor<StmtLoweringVisitor>
             //
             if (!expr->type.type->equals(context->astBuilder->getVoidType()))
             {
-                getBuilder()->emitReturn(getSimpleVal(context, loweredExpr));
+                IRInst* resultInst = nullptr;
+                if (context->returnStmtShouldCoerceToRef)
+                {
+                    // Try to get an address to return if we are trying to return a ref.
+                    // This should be enough, but due to `MakeRefExpr` (`ExplicitRef` hack),
+                    // we need to fall back to getting a simple val in some cases.
+                    auto address = tryGetAddress(context, loweredExpr, TryGetAddressMode::Aggressive);
+                    if(address.flavor == LoweredValInfo::Flavor::Ptr)
+                        resultInst = address.val;
+                }
+
+                // If we did not already have an address, return a simple val. 
+                if(!resultInst)
+                    resultInst = getSimpleVal(context, loweredExpr);
+                getBuilder()->emitReturn(resultInst);
             }
             else
             {
@@ -11453,6 +11469,8 @@ struct DeclLoweringVisitor : DeclVisitor<DeclLoweringVisitor, LoweredValInfo>
 
         auto irFuncType = info.type;
         auto& irResultType = info.resultType;
+        if (auto irResultRefType = as<IRRefParamType>(irResultType))
+            subContext->returnStmtShouldCoerceToRef = true;
         auto& parameterLists = info.parameterLists;
         auto& paramTypes = info.paramTypes;
 
